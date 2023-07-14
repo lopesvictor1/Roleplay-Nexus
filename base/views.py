@@ -53,6 +53,7 @@ def registerUser(request):
     form = UserCreationForm()
     if request.method == 'POST':
         form = UserCreationForm(request.POST)
+        print(form)
         if form.is_valid():
             user = form.save(commit=False)
             user.username = user.username.lower()
@@ -132,13 +133,6 @@ def create_room(request):
         room.participants.add(request.user)
         room.save()
         
-        """form = RoomForm(request.POST)
-        if form.is_valid():
-            room = form.save(commit=False)
-            room.host = request.user
-            room.save()
-            room.participants.add(request.user)
-            room.save()"""
         return redirect('home')
     context = {'form' : form, 'topics' : topics}
     return render(request, 'base/room_form.html', context)
