@@ -18,7 +18,7 @@
             </a>
             <h3>Study Room</h3>
           </div>
-          {% if room.host == request.user %}
+          {% if room.hostProfile.user == request.user %}
           <div class="room__topRight">
             <a href="{% url 'update-room' room.id %}">
               <svg
@@ -65,11 +65,11 @@
             </div>
             <div class="room__hosted">
               <p>Hosted By</p>
-              <a href="{% url 'user-profile' room.host.id %}" class="room__author">
+              <a href="{% url 'user-profile' room.hostProfile.user.id %}" class="room__author">
                 <div class="avatar avatar--small">
-                  <img src="https://randomuser.me/api/portraits/men/37.jpg" />
+                  <img src="{{room.hostProfile.avatar.url}}" />
                 </div>
-                <span>@{{room.host}}</span>
+                <span>@{{room.hostProfile.user}}</span>
               </a>
             </div>
             <div class="room__details">
@@ -83,15 +83,15 @@
               <div class="thread">
                 <div class="thread__top">
                   <div class="thread__author">
-                    <a href="{% url 'user-profile' message.user.id %}" class="thread__authorInfo">
+                    <a href="{% url 'user-profile' message.userProfile.user.id %}" class="thread__authorInfo">
                       <div class="avatar avatar--small">
-                        <img src="https://randomuser.me/api/portraits/men/37.jpg" />
+                        <img src="{{message.userProfile.avatar.url}}" />
                       </div>
-                      <span>@{{message.user.username}}</span>
+                      <span>@{{message.userProfile.user.username}}</span>
                     </a>
                     <span class="thread__date">{{message.created|timesince}}</span>
                   </div>
-                  {% if request.user == message.user %}
+                  {% if request.user == message.userProfile.user %}
                   <div class="thread__delete">
                     <a href="{% url 'delete-message' message.id %}"><svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
                       <title>remove</title>
@@ -125,14 +125,14 @@
       <div class="participants">
         <h3 class="participants__top">Participants <span>{{room.participants.count}} joined</span></h3>
         <div class="participants__list scroll">
-          {% for user in participants %}
-          <a href="{% url 'user-profile' user.id %}" class="participant">
+          {% for userProfile in participants %}
+          <a href="{% url 'user-profile' userProfile.user.id %}" class="participant">
             <div class="avatar avatar--medium">
-              <img src="https://randomuser.me/api/portraits/men/37.jpg" />
+              <img src="{{userProfile.avatar.url}}" />
             </div>
             <p>
-              {{user.username}}
-              <span>@{{user.username}}</span>
+              {{userProfile.name}}
+              <span>@{{userProfile.user.username}}</span>
             </p>
           </a>
           {% endfor %}

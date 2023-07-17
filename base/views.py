@@ -40,8 +40,12 @@ def loginPage(request):
         except:
             messages.error(request, 'User doesn\'t exist')
 
+    if request.user.is_authenticated:
+        avatar = UserProfile.objects.get(user__username = request.user).avatar.url
+    else:
+        avatar = 'media/avatars/avatar.svg'
     
-    context = {'page': page}
+    context = {'page': page, 'avatar':avatar}
     return render(request, 'base/login_register.html', context)
 
 
@@ -77,7 +81,7 @@ def home(request):
     roomss = Room.objects.filter(Q(topic__name__icontains=q) |
                                  Q(name__icontains=q) |
                                  Q(description__icontains=q) |
-                                 Q(host__username__icontains=q))
+                                 Q(hostProfile__user__username__icontains=q))
     
     room_count = roomss.count()
 
@@ -85,7 +89,12 @@ def home(request):
 
     room_messages = Message.objects.filter(Q(room__topic__name__icontains = q))
     
-    context = {'rooms': roomss, 'topics':topics, 'room_count': room_count, 'room_messages' : room_messages}
+    if request.user.is_authenticated:
+        avatar = UserProfile.objects.get(user__username = request.user).avatar.url
+    else:
+        avatar = 'media/avatars/avatar.svg'
+
+    context = {'rooms': roomss, 'topics':topics, 'room_count': room_count, 'room_messages' : room_messages, 'avatar' : avatar}
     
     return render(request, 'base/home.html', context)
 
@@ -95,28 +104,40 @@ def room(request, pk):
     room = Room.objects.get(id=pk)                                                  #procura um objeto do modelo Room que possua a primary key passada
     room_messages = room.message_set.all()                    #nesse caso, message_set se refere ao conjunto do modelo message relacionado ao objeto room retornado pela linha acima
     
-    participants = room.participants.all().order_by('username')
+    participants = room.participants.all().order_by('user__username')
 
     if request.method == 'POST':
+        userProfile = UserProfile.objects.get(user__username = request.user)
         message = Message.objects.create(
-            user = request.user,
+            userProfile = userProfile,
             room = room,
             body = request.POST.get('body')
         )
-        room.participants.add(request.user)
+        room.participants.add(userProfile)
         return redirect('room', pk=room.id)
     
-    context = {'room': room, 'room_messages': room_messages, 'participants' : participants}                             #context é um dicionário com todos os dados que serão passados para o html
+    if request.user.is_authenticated:
+        avatar = UserProfile.objects.get(user__username = request.user).avatar.url
+    else:
+        avatar = 'media/avatars/avatar.svg'
+    
+    context = {'room': room, 'room_messages': room_messages, 'participants' : participants, 'avatar' : avatar}                             #context é um dicionário com todos os dados que serão passados para o html
     return render(request, 'base/room.html', context)                               #renderiza o html 'base/room' passando a requisição e o dicionário com os itens criados
 
 
 def user_profile(request, pk):
     user = User.objects.get(id=pk)
     userProfile = UserProfile.objects.get(user__id = user.id)
-    rooms = user.room_set.all()
-    room_messages = user.message_set.all()
+    rooms = userProfile.room_set.all()
+    room_messages = userProfile.message_set.all()
     topics = Topic.objects.all()
-    context = {'user' : user, 'rooms' : rooms, 'room_messages' : room_messages, 'topics' : topics, 'userProfile' : userProfile}
+
+    if request.user.is_authenticated:
+        avatar = UserProfile.objects.get(user__username = request.user).avatar.url
+    else:
+        avatar = 'media/avatars/avatar.svg'
+
+    context = {'user' : user, 'rooms' : rooms, 'room_messages' : room_messages, 'topics' : topics, 'userProfile' : userProfile, 'avatar' : avatar}
     return render(request, 'base/profile.html', context)
 
 
@@ -127,31 +148,32 @@ def create_room(request):
     if request.method == 'POST':
         topic_name = request.POST.get('topic')
         topic, created = Topic.objects.get_or_create(name=topic_name)
-        
+        hostProfile = UserProfile.objects.get(user__username = request.user)
         room = Room(
-            host = request.user,
+            hostProfile = hostProfile,
             topic = topic,
             name = request.POST.get('name'),
             description = request.POST.get('description'),
         )
         room.save()
-        room.participants.add(request.user)
+        room.participants.add(hostProfile)
         room.save()
         
         return redirect('home')
-    context = {'form' : form, 'topics' : topics}
+    if request.user.is_authenticated:
+        avatar = UserProfile.objects.get(user__username = request.user).avatar.url
+    else:
+        avatar = 'media/avatars/avatar.svg'
+    context = {'form' : form, 'topics' : topics, 'avatar' : avatar}
     return render(request, 'base/room_form.html', context)
 
-    
-    context = {'form' : form}
-    return render(request, 'base/room_form.html', context)
 
 @login_required(login_url='/login')
 def update_room(request, pk):
     room = Room.objects.get(id=pk)
     form = RoomForm(instance=room)
     topics = Topic.objects.all()
-    if request.user != room.host:
+    if request.user != room.hostProfile.user:
         return HttpResponse("Only hosts can update their own rooms.")
 
     if request.method == 'POST':
@@ -163,33 +185,50 @@ def update_room(request, pk):
         room.save()
         return redirect('home')
 
-    context = {'form': form, 'topics': topics, 'room': room}
+    if request.user.is_authenticated:
+        avatar = UserProfile.objects.get(user__username = request.user).avatar.url
+    else:
+        avatar = 'media/avatars/avatar.svg'
+    context = {'form': form, 'topics': topics, 'room': room, 'avatar' : avatar}
     return render(request, 'base/room_form.html', context)
 
 @login_required(login_url='/login')
 def delete_room(request, pk):
     room = Room.objects.get(id=pk)
 
-    if request.user != room.host:
+    if request.user != room.hostProfile.user:
         return HttpResponse("Only hosts can delete their own rooms.")
 
     if request.method == 'POST':
         room.delete()
         return redirect('home')
-    return render(request, 'base/delete.html', {'obj':room})
+    
+    if request.user.is_authenticated:
+        avatar = UserProfile.objects.get(user__username = request.user).avatar.url
+    else:
+        avatar = 'media/avatars/avatar.svg'
+    context = {'obj' : room, 'avatar' : avatar}
+    return render(request, 'base/delete.html', context)
 
 
 @login_required(login_url='/login')
 def delete_message(request, pk):
     message = Message.objects.get(id=pk)
 
-    if request.user != message.user:
+    if request.user != message.userProfile.user:
         return HttpResponse("Only the user that created the message can delete it.")
 
     if request.method == 'POST':
         message.delete()
         return redirect('home')
-    return render(request, 'base/delete.html', {'obj':message})
+    
+    if request.user.is_authenticated:
+        avatar = UserProfile.objects.get(user__username = request.user).avatar.url
+    else:
+        avatar = 'media/avatars/avatar.svg'
+
+    context = {'obj' : message, 'avatar' : avatar}
+    return render(request, 'base/delete.html', context)
 
 
 
@@ -238,8 +277,12 @@ def update_user(request):
             userProfile.save()
             userProfile.user.save()
     
+    if request.user.is_authenticated:
+        avatar = UserProfile.objects.get(user__username = request.user).avatar.url
+    else:
+        avatar = 'media/avatars/avatar.svg'
     
-    context = {}
+    context = {'avatar' : avatar}
     return render(request, 'base/update_user.html', context)
 
 
@@ -247,11 +290,20 @@ def topicsPage(request):
     q = request.GET.get('q') if request.GET.get('q') != None else ''
     room_count = Room.objects.all().count
     topics = Topic.objects.alias(nroom=Count('room')).order_by('-nroom').filter(name__icontains=q)[0:5]
-    context = {'room_count': room_count, 'topics': topics}
+    
+    if request.user.is_authenticated:
+        avatar = UserProfile.objects.get(user__username = request.user).avatar.url
+    else:
+        avatar = 'media/avatars/avatar.svg'
+    context = {'room_count': room_count, 'topics': topics, 'avatar' : avatar}
     return render(request, 'base/topics.html', context)
 
 
 def activityPage(request):
     room_messages = Message.objects.all()
-    context = {'room_messages':room_messages}
+    if request.user.is_authenticated:
+        avatar = UserProfile.objects.get(user__username = request.user).avatar.url
+    else:
+        avatar = 'media/avatars/avatar.svg'
+    context = {'room_messages':room_messages, 'avatar' : avatar}
     return render(request, 'base/activity.html', context)
