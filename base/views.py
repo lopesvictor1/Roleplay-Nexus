@@ -6,9 +6,10 @@ from django.contrib.auth.models import User
 from django.contrib import messages
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import authenticate, login, logout
-from .models import Room, Topic, Message
-from .forms import RoomForm, UserForm
+from .models import Room, Topic, Message, UserProfile
+from .forms import RoomForm
 from django.db.models import Count
+import re
 
 '''rooms=[
     {'id':1, 'name':'Bud'},
@@ -59,6 +60,8 @@ def registerUser(request):
             user = form.save(commit=False)
             user.username = user.username.lower()
             user.save()
+            userProfile = UserProfile(user=user, name=user.username)
+            userProfile.save()
             login(request, user)
             return redirect('home')
         else:
@@ -109,10 +112,11 @@ def room(request, pk):
 
 def user_profile(request, pk):
     user = User.objects.get(id=pk)
+    userProfile = UserProfile.objects.get(user__id = user.id)
     rooms = user.room_set.all()
     room_messages = user.message_set.all()
     topics = Topic.objects.all()
-    context = {'user' : user, 'rooms' : rooms, 'room_messages' : room_messages, 'topics' : topics}
+    context = {'user' : user, 'rooms' : rooms, 'room_messages' : room_messages, 'topics' : topics, 'userProfile' : userProfile}
     return render(request, 'base/profile.html', context)
 
 
@@ -192,17 +196,50 @@ def delete_message(request, pk):
 @login_required(login_url='/login')
 def update_user(request):
     user = request.user
-    form = UserForm(instance=user)
+    userProfile = UserProfile.objects.get(user__username = user)
 
     if request.method == 'POST':
-        form = UserForm(request.POST, instance=user)
-        if form.is_valid():
-            form.save()
-            return redirect('user-profile', pk=user.id)
+        name = request.POST.get('username')
+        email = request.POST.get('email')
+        about = request.POST.get('about')
+        avatar = request.FILES.get('avatar')
 
+        valid = True
+
+        if len(name) == 0:
+            name = userProfile.name
+        elif len(name) < 2:
+            messages.error(request, 'The name has to be at least 2 character long')
+            valid = False
+        
+        if len(email) == 0:
+            email = userProfile.user.email
+        elif not re.search(r'[\w.]+\@[\w.]+', email):
+            messages.error(request, 'Please enter a valid Email')
+            valid = False
+
+        if len(about) == 0:
+            about = userProfile.about
+        elif len(about) < 10:
+            messages.error(request, 'The about section has to be at least 10 character long')
+            valid = False
+
+        print(avatar)
+
+        if not avatar:
+            avatar = userProfile.avatar
+
+        if valid == True:
+            userProfile.name = name
+            userProfile.user.email = email
+            userProfile.about = about
+            userProfile.avatar = avatar
+
+            userProfile.save()
+            userProfile.user.save()
     
     
-    context = {'form':form}
+    context = {}
     return render(request, 'base/update_user.html', context)
 
 

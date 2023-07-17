@@ -21,12 +21,22 @@
         <form class="form" action="" method="POST" enctype="multipart/form-data">
           {% csrf_token %}
 
-          {% for field in form %}
           <div class="form__group">
-            <label for="{{field.label}}">{{field.label}}</label>
-            {{field}}
+            <label for="username">Name</label>
+            <input id="username" name="username" type="text" placeholder="E.g. John doe" />
           </div>
-          {% endfor %}
+
+          <div class="form__group">
+            <label for="email">Email</label>
+            <input id="email" name="email" type="text" placeholder="E.g. john@email.com" />
+          </div>
+
+          <div class="form__group">
+            <label for="About">About</label>
+            <textarea name="about" id="about" placeholder="Write about yourself..."></textarea>
+          </div>
+
+          <input type="file" name="avatar" accept="image/png, image/gif, image/jpeg" />
 
           <div class="form__action">
             <a class="btn btn--dark" href="index.html">Cancel</a>
